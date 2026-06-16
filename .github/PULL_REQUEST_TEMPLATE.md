@@ -21,7 +21,7 @@
 ## Security and Supply Chain
 
 - [ ] No credentials, tokens, cookies, private keys, or private logs are included
-- [ ] No new repository or organization secrets are required, except the approved `GITGUARDIAN_API_KEY`
+- [ ] No new repository or organization secrets are required, except approved release/security secrets documented in `SECURITY.md`
 - [ ] New or changed GitHub Actions are pinned to full commit SHAs
 - [ ] Workflow permissions are least-privilege
 - [ ] Workflow changes do not add high-risk triggers or unapproved secret usage

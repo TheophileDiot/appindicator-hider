@@ -32,31 +32,48 @@ git tag v$(cat VERSION)
 git push origin main v$(cat VERSION)
 ```
 
-The GitHub Actions release workflow validates the package, checks that the tag matches `VERSION`, and attaches the extension ZIP to a GitHub Release.
+The GitHub Actions release workflow validates the package, checks that the tag matches `VERSION`, and attaches the extension ZIP to a GitHub Release. When GNOME upload automation is enabled, the workflow then submits the same artifact to `extensions.gnome.org` for review.
 
 The workflow is intentionally limited:
 
 - package validation runs with read-only repository contents
 - publishing gets `contents: write` only in the tag-only release job
+- GNOME upload runs only after the GitHub Release job, only for tags, and only when explicitly enabled
 - external Actions are pinned to full commit SHAs
 - workflow files are checked for forbidden triggers, secret usage, broad write permissions, and shell-download pipes
-- no repository or organization secrets are required
+- GitHub Release publishing uses the GitHub CLI from the runner, not a third-party release Action
+- no repository or organization secrets are required unless GNOME upload automation is enabled
 
-## Upload to GNOME Extensions
+## GNOME Extensions Upload Automation
 
-1. Download the ZIP from the GitHub Release, or use the local file:
+The release workflow can submit the GitHub Release artifact to `extensions.gnome.org` by using the official upload API. GNOME still reviews the submitted version before publishing it.
+
+Configure GitHub before enabling the upload job:
+
+1. Create an environment named `gnome-extensions`.
+2. Add yourself as a required reviewer for that environment.
+3. Add or refresh an environment secret named `GNOME_EXTENSIONS_TOKEN` shortly before release.
+4. Add a repository variable named `GNOME_EXTENSIONS_UPLOAD_ENABLED` with value `true`.
+
+Use a revocable `extensions.gnome.org` API token for `GNOME_EXTENSIONS_TOKEN`. Do not store your GNOME password in GitHub. The GNOME Extensions website uses short-lived Knox API tokens, so expect to refresh this secret before release submissions.
+
+The workflow sends the release ZIP as `source` with `shell_license_compliant=true` and `tos_compliant=true` to:
 
 ```text
-dist/appindicator-hider@theophilediot.github.io.shell-extension.zip
+https://extensions.gnome.org/api/v1/extensions
 ```
 
-2. Sign in at:
+If the repository variable is missing or set to anything other than `true`, the GNOME upload job is skipped and the GitHub Release still completes. If a fresh token is not available, keep automation disabled and use the manual upload path.
+
+## Manual GNOME Upload
+
+If automation is disabled, download the ZIP from the GitHub Release, sign in at:
 
 ```text
 https://extensions.gnome.org/upload/
 ```
 
-3. Upload the ZIP and wait for review.
+Then upload the ZIP and wait for review.
 
 ## Review Notes
 
