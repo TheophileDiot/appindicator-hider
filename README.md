@@ -1,12 +1,22 @@
 # AppIndicator Hider
 
-GNOME Shell extension that hides selected AppIndicator/KStatusNotifier icons while leaving other tray icons visible.
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![GNOME Shell](https://img.shields.io/badge/GNOME%20Shell-46-4A86CF.svg)](metadata.json)
 
-Author: TheophileDiot
-License: MIT
-Repository: https://github.com/TheophileDiot/appindicator-hider
+Hide the tray icons that keep shouting. Keep the ones that matter.
 
-This is useful when Ubuntu AppIndicators must stay enabled for apps like NetBird or Proton VPN, but noisy indicators like Livepatch, Ulauncher, or Discord should stay hidden.
+AppIndicator Hider is a small GNOME Shell extension that lets you hide selected AppIndicator and KStatusNotifier tray icons without disabling tray support entirely.
+
+Use it when apps like NetBird, Proton VPN, or cloud sync tools still need tray support, but noisy indicators like Livepatch, launchers, chat apps, or background utilities do not deserve space in the top bar.
+
+## Highlights
+
+- Pick exactly which tray icons disappear
+- Keep every other AppIndicator visible
+- Toggle currently running indicators from preferences
+- Add text or field-based matchers for apps that are not running yet
+- Start clean: no bundled hidden icons, no opinionated defaults
+- Configure from the GNOME Extensions settings button
 
 ## Install From Source
 
@@ -14,59 +24,39 @@ This is useful when Ubuntu AppIndicators must stay enabled for apps like NetBird
 make install
 ```
 
-Then restart GNOME Shell on X11:
+Restart GNOME Shell:
 
-```text
-Alt+F2, r, Enter
-```
+- X11: press `Alt` + `F2`, type `r`, press `Enter`
+- Wayland: log out and back in
 
-On Wayland, log out and back in.
-
-Enable:
+Enable the extension:
 
 ```bash
 gnome-extensions enable appindicator-hider@theophilediot.github.io
 ```
 
-## Package
-
-```bash
-make pack
-```
-
-The distributable archive is written to:
-
-```text
-dist/appindicator-hider@theophilediot.github.io.shell-extension.zip
-```
-
 ## Configure
 
-Open the preferences dialog from the settings icon in the GNOME Extensions app, or run:
+Open GNOME Extensions and click the settings button for AppIndicator Hider.
+
+You can also open preferences from the terminal:
 
 ```bash
 gnome-extensions prefs appindicator-hider@theophilediot.github.io
 ```
 
-The preferences dialog can:
+Preferences can:
 
-- show the currently registered AppIndicator/StatusNotifier items
+- show currently registered AppIndicator/KStatusNotifier items
 - hide or show a live item with a switch
-- add or remove custom matchers
+- add and remove custom matchers
 - enable debug logging
 
-```bash
-gsettings --schemadir ~/.local/share/gnome-shell/extensions/appindicator-hider@theophilediot.github.io/schemas \
-  get org.gnome.shell.extensions.appindicator-hider hidden-indicators
-```
+AppIndicator Hider ships with an empty hidden list. Nothing disappears until you choose it.
 
-```bash
-gsettings --schemadir ~/.local/share/gnome-shell/extensions/appindicator-hider@theophilediot.github.io/schemas \
-  set org.gnome.shell.extensions.appindicator-hider hidden-indicators \
-  "['id:livepatch', 'title:Discord']"
-```
+## Matchers
 
-Supported matcher prefixes:
+Most users can use the preferences switches. For manual rules, matchers support these prefixes:
 
 - `id:` AppIndicator ID
 - `title:` AppIndicator title
@@ -79,16 +69,49 @@ Supported matcher prefixes:
 - `wmclass:` legacy tray WM class
 - `text:` any known field
 
-## Inspect Live Indicator IDs
+Example:
+
+```bash
+gsettings --schemadir ~/.local/share/gnome-shell/extensions/appindicator-hider@theophilediot.github.io/schemas \
+  set org.gnome.shell.extensions.appindicator-hider hidden-indicators \
+  "['id:livepatch', 'title:Discord']"
+```
+
+Read current matchers:
+
+```bash
+gsettings --schemadir ~/.local/share/gnome-shell/extensions/appindicator-hider@theophilediot.github.io/schemas \
+  get org.gnome.shell.extensions.appindicator-hider hidden-indicators
+```
+
+## Inspect Live Indicators
+
+List registered StatusNotifier items:
 
 ```bash
 busctl --user get-property org.kde.StatusNotifierWatcher \
   /StatusNotifierWatcher org.kde.StatusNotifierWatcher RegisteredStatusNotifierItems
 ```
 
-Then inspect a specific item:
+Inspect a specific item:
 
 ```bash
 busctl --user get-property :1.161 /org/ayatana/NotificationItem/livepatch org.kde.StatusNotifierItem Id
 busctl --user get-property :1.161 /org/ayatana/NotificationItem/livepatch org.kde.StatusNotifierItem Title
 ```
+
+## Package
+
+```bash
+make pack
+```
+
+The archive is written to:
+
+```text
+dist/appindicator-hider@theophilediot.github.io.shell-extension.zip
+```
+
+## License
+
+MIT
