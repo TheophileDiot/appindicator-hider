@@ -1,7 +1,7 @@
 # AppIndicator Hider
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![GNOME Shell](https://img.shields.io/badge/GNOME%20Shell-46-4A86CF.svg)](metadata.json)
+[![GNOME Shell](https://img.shields.io/badge/GNOME%20Shell-46--50-4A86CF.svg)](metadata.json)
 
 Hide the tray icons that keep shouting. Keep the ones that matter.
 

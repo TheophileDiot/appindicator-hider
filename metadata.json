@@ -3,7 +3,11 @@
   "name": "AppIndicator Hider",
   "description": "Hide only the AppIndicator and StatusNotifier tray icons you choose, while keeping the rest of your top bar visible.",
   "shell-version": [
-    "46"
+    "46",
+    "47",
+    "48",
+    "49",
+    "50"
   ],
   "url": "https://github.com/TheophileDiot/appindicator-hider",
   "settings-schema": "org.gnome.shell.extensions.appindicator-hider"
