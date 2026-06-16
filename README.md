@@ -112,6 +112,20 @@ The archive is written to:
 dist/appindicator-hider@theophilediot.github.io.shell-extension.zip
 ```
 
+## Release
+
+Source releases are tracked in [`VERSION`](VERSION) and Git tags such as `v0.1.0`. The GNOME Extensions website assigns its own internal version, so `metadata.json` intentionally does not contain a `version` key.
+
+Use `dev` for regular integration work and `main` for release tags.
+
+Run the release checks before tagging:
+
+```bash
+make release-check
+```
+
+See [`RELEASE.md`](RELEASE.md) for the full workflow and GNOME upload steps.
+
 ## License
 
 MIT

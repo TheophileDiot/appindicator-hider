@@ -1,0 +1,91 @@
+name: Bug Report
+description: Report a reproducible problem with AppIndicator Hider.
+title: "[BUG] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: >
+        Before opening a bug, please search existing issues:
+        https://github.com/TheophileDiot/appindicator-hider/issues?q=is%3Aissue+sort%3Acreated-desc
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Describe the bug and what you expected to happen instead.
+      placeholder: AppIndicator Hider hides the wrong icon, does not hide an icon, crashes preferences, etc.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: How do we reproduce it?
+      description: List the exact steps needed to reproduce the issue.
+      placeholder: |
+        1. Install and enable the extension.
+        2. Open preferences.
+        3. Toggle ...
+        4. Observe ...
+    validations:
+      required: true
+  - type: input
+    id: extension-version
+    attributes:
+      label: Extension version or source
+      description: Use the GitHub release tag, GNOME Extensions version, or source commit.
+      placeholder: v0.1.0, GNOME Extensions version 1, or commit SHA
+    validations:
+      required: true
+  - type: input
+    id: gnome-shell-version
+    attributes:
+      label: GNOME Shell version
+      description: Run `gnome-shell --version`.
+      placeholder: GNOME Shell 46.7
+    validations:
+      required: true
+  - type: dropdown
+    id: session-type
+    attributes:
+      label: Session type
+      options:
+        - Wayland
+        - X11
+        - Unsure
+    validations:
+      required: true
+  - type: input
+    id: distribution
+    attributes:
+      label: Linux distribution
+      placeholder: Ubuntu 24.04, Fedora 40, Arch Linux, etc.
+    validations:
+      required: true
+  - type: textarea
+    id: indicators
+    attributes:
+      label: Affected indicator(s)
+      description: Name the affected app or indicator. Include StatusNotifier ID, title, path, or matcher if known.
+      placeholder: |
+        App: Proton VPN
+        Matcher: id:proton.vpn.app.gtk
+        StatusNotifier path: /StatusNotifierItem
+    validations:
+      required: false
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant log output
+      description: Paste relevant GNOME Shell or preferences logs. Remove tokens, hostnames, or private paths first.
+      render: shell
+    validations:
+      required: false
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Pre-submit checks
+      options:
+        - label: I searched existing issues first.
+          required: true
+        - label: I removed private data from logs and screenshots.
+          required: true
