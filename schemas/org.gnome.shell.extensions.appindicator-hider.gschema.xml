@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="org.gnome.shell.extensions.appindicator-hider" path="/org/gnome/shell/extensions/appindicator-hider/">
+    <key name="hidden-indicators" type="as">
+      <default>[]</default>
+      <summary>Hidden indicator matchers</summary>
+      <description>
+        Matchers for AppIndicator actors to hide. Supported prefixes: id, title, unique, bus, path, key, status, command, wmclass, and text. Prefix text searches every known field.
+      </description>
+    </key>
+    <key name="debug-logging" type="b">
+      <default>false</default>
+      <summary>Enable debug logging</summary>
+    </key>
+  </schema>
+</schemalist>
