@@ -13,6 +13,19 @@ const SETTING_DEBUG_LOGGING = 'debug-logging';
 const STATUS_NOTIFIER_WATCHER = 'org.kde.StatusNotifierWatcher';
 const STATUS_NOTIFIER_WATCHER_PATH = '/StatusNotifierWatcher';
 const STATUS_NOTIFIER_ITEM = 'org.kde.StatusNotifierItem';
+const MATCHER_FIELD_LABELS = {
+    id: 'App ID',
+    title: 'Title',
+    unique: 'Unique ID',
+    bus: 'D-Bus name',
+    path: 'D-Bus path',
+    key: 'Panel key',
+    status: 'Status',
+    command: 'Command',
+    wmclass: 'Window class',
+    text: 'Any text',
+};
+const ABBREVIATIONS = new Set(['dbus', 'gtk', 'id', 'kde', 'ui', 'vpn']);
 
 export default class AppIndicatorHiderPreferences extends ExtensionPreferences {
     fillPreferencesWindow(window) {
@@ -20,7 +33,7 @@ export default class AppIndicatorHiderPreferences extends ExtensionPreferences {
         this._matcherRows = [];
         this._liveRows = [];
 
-        window.set_default_size(720, 620);
+        window.set_default_size(760, 680);
         window.set_search_enabled(true);
 
         const page = new Adw.PreferencesPage({
@@ -30,19 +43,20 @@ export default class AppIndicatorHiderPreferences extends ExtensionPreferences {
         window.add(page);
 
         this._liveGroup = new Adw.PreferencesGroup({
-            title: 'Live Indicators',
-            description: 'Toggle currently registered StatusNotifier/AppIndicator items.',
+            title: 'Hide Running Icons',
+            description: 'Turn a switch on to hide that tray icon. Turn it off to show it again.',
         });
         page.add(this._liveGroup);
 
         this._matchersGroup = new Adw.PreferencesGroup({
-            title: 'Hidden Matchers',
-            description: 'Rules used by the extension. Matching indicators are hidden immediately.',
+            title: 'Hidden Icons',
+            description: 'Saved rules keep matching tray icons hidden, even after apps restart.',
         });
         page.add(this._matchersGroup);
 
         const addGroup = new Adw.PreferencesGroup({
-            title: 'Add Matcher',
+            title: 'Add Hidden Icon',
+            description: 'Add a rule for an app that is not currently listed above.',
         });
         page.add(addGroup);
         addGroup.add(this._buildAddMatcherRow());
@@ -79,8 +93,8 @@ export default class AppIndicatorHiderPreferences extends ExtensionPreferences {
 
     _buildAddMatcherRow() {
         const row = new Adw.ActionRow({
-            title: 'Custom matcher',
-            subtitle: 'Use id:, title:, unique:, bus:, path:, key:, status:, command:, wmclass:, or text:.',
+            title: 'Matcher',
+            subtitle: 'Use an app name like discord, or a precise rule like id:livepatch.',
         });
 
         const box = new Gtk.Box({
@@ -90,14 +104,17 @@ export default class AppIndicatorHiderPreferences extends ExtensionPreferences {
         });
 
         const entry = new Gtk.Entry({
-            placeholder_text: 'id:example',
+            placeholder_text: 'discord or id:livepatch',
             hexpand: true,
-            width_chars: 24,
+            width_chars: 22,
         });
         const button = new Gtk.Button({
             label: 'Add',
+            css_classes: ['suggested-action'],
+            sensitive: false,
             valign: Gtk.Align.CENTER,
         });
+        button.tooltip_text = 'Add hidden icon rule';
 
         const addMatcher = () => {
             const matcher = entry.text.trim();
@@ -109,6 +126,9 @@ export default class AppIndicatorHiderPreferences extends ExtensionPreferences {
         };
 
         entry.connect('activate', addMatcher);
+        entry.connect('notify::text', () => {
+            button.sensitive = entry.text.trim().length > 0;
+        });
         button.connect('clicked', addMatcher);
         box.append(entry);
         box.append(button);
@@ -139,13 +159,14 @@ export default class AppIndicatorHiderPreferences extends ExtensionPreferences {
         this._clearRows(this._liveGroup, this._liveRows);
 
         const refreshRow = new Adw.ActionRow({
-            title: 'Refresh detected indicators',
-            subtitle: 'The list is read from org.kde.StatusNotifierWatcher.',
+            title: 'Refresh icons',
+            subtitle: 'Use after opening or closing apps with tray icons.',
         });
         const refreshButton = new Gtk.Button({
             icon_name: 'view-refresh-symbolic',
             valign: Gtk.Align.CENTER,
         });
+        refreshButton.tooltip_text = 'Refresh running tray icons';
         refreshButton.connect('clicked', () => this._renderLiveIndicators());
         refreshRow.add_suffix(refreshButton);
         refreshRow.activatable_widget = refreshButton;
@@ -156,7 +177,7 @@ export default class AppIndicatorHiderPreferences extends ExtensionPreferences {
             indicators = this._getRegisteredIndicators();
         } catch (e) {
             this._addLiveRow(new Adw.ActionRow({
-                title: 'Could not read live indicators',
+                title: 'Cannot read running tray icons',
                 subtitle: e.message ?? String(e),
             }));
             return;
@@ -164,27 +185,28 @@ export default class AppIndicatorHiderPreferences extends ExtensionPreferences {
 
         if (!indicators.length) {
             this._addLiveRow(new Adw.ActionRow({
-                title: 'No live indicators found',
-                subtitle: 'Open the apps that create tray icons, then refresh.',
+                title: 'No running tray icons found',
+                subtitle: 'Open an app with a tray icon, then refresh.',
             }));
             return;
         }
 
-        for (const indicator of indicators)
+        for (const indicator of this._sortIndicators(indicators))
             this._addLiveRow(this._buildIndicatorRow(indicator));
     }
 
     _buildIndicatorRow(indicator) {
-        const title = this._indicatorTitle(indicator);
+        const hidden = this._matchesHiddenIndicator(indicator.facts);
         const row = new Adw.ActionRow({
-            title,
-            subtitle: this._indicatorSubtitle(indicator),
+            title: this._indicatorTitle(indicator),
+            subtitle: this._indicatorSubtitle(indicator, hidden),
         });
 
         const toggle = new Gtk.Switch({
-            active: this._matchesHiddenIndicator(indicator.facts),
+            active: hidden,
             valign: Gtk.Align.CENTER,
         });
+        toggle.tooltip_text = hidden ? 'This icon is hidden' : 'Hide this icon';
 
         toggle.connect('notify::active', () => {
             if (toggle.active)
@@ -205,24 +227,48 @@ export default class AppIndicatorHiderPreferences extends ExtensionPreferences {
         const matchers = this._getMatchers();
         if (!matchers.length) {
             this._addMatcherRow(new Adw.ActionRow({
-                title: 'No hidden matchers',
-                subtitle: 'All AppIndicator icons are currently allowed to show.',
+                title: 'All tray icons are shown',
+                subtitle: 'Turn on a switch above or add a matcher below to hide one.',
             }));
             return;
         }
 
+        this._addMatcherRow(this._buildClearMatchersRow(matchers.length));
+
         for (const matcher of matchers) {
-            const row = new Adw.ActionRow({title: matcher});
+            const row = new Adw.ActionRow({
+                title: this._matcherTitle(matcher),
+                subtitle: `Rule: ${matcher}`,
+            });
             const removeButton = new Gtk.Button({
                 icon_name: 'user-trash-symbolic',
                 css_classes: ['flat'],
                 valign: Gtk.Align.CENTER,
             });
+            removeButton.tooltip_text = 'Remove this hidden icon rule';
             removeButton.connect('clicked', () => this._removeMatcher(matcher));
             row.add_suffix(removeButton);
             row.activatable_widget = removeButton;
             this._addMatcherRow(row);
         }
+    }
+
+    _buildClearMatchersRow(count) {
+        const row = new Adw.ActionRow({
+            title: 'Show all tray icons',
+            subtitle: `Remove ${count} ${count === 1 ? 'hidden icon rule' : 'hidden icon rules'}.`,
+        });
+        const button = new Gtk.Button({
+            label: 'Show All',
+            css_classes: ['destructive-action'],
+            valign: Gtk.Align.CENTER,
+        });
+        button.tooltip_text = 'Remove all hidden icon rules';
+        button.connect('clicked', () => this._setMatchers([]));
+        row.add_suffix(button);
+        row.activatable_widget = button;
+
+        return row;
     }
 
     _getRegisteredIndicators() {
@@ -342,22 +388,91 @@ export default class AppIndicatorHiderPreferences extends ExtensionPreferences {
         return value?.deep_unpack ? value.deep_unpack() : value;
     }
 
-    _indicatorTitle(indicator) {
-        if (indicator.title && indicator.id && indicator.title !== indicator.id)
-            return `${indicator.title} (${indicator.id})`;
+    _sortIndicators(indicators) {
+        return indicators.sort((a, b) => {
+            const hiddenA = this._matchesHiddenIndicator(a.facts);
+            const hiddenB = this._matchesHiddenIndicator(b.facts);
 
-        return indicator.id || indicator.title || indicator.item;
+            if (hiddenA !== hiddenB)
+                return hiddenA ? -1 : 1;
+
+            return this._indicatorTitle(a).localeCompare(this._indicatorTitle(b), undefined, {
+                sensitivity: 'base',
+            });
+        });
     }
 
-    _indicatorSubtitle(indicator) {
+    _indicatorTitle(indicator) {
+        const title = this._humanizeToken(indicator.title);
+        const id = this._humanizeToken(indicator.id);
+
+        if (title && id && title.toLowerCase() !== id.toLowerCase())
+            return `${title} (${id})`;
+
+        return title || id || this._humanizeToken(indicator.item) || 'Unknown tray icon';
+    }
+
+    _indicatorSubtitle(indicator, hidden) {
+        if (indicator.error)
+            return `Cannot inspect details; ${indicator.error}`;
+
         const parts = [
-            indicator.error ? `error:${indicator.error}` : '',
-            indicator.status ? `status:${indicator.status}` : '',
-            indicator.id ? `id:${indicator.id}` : '',
-            `path:${indicator.path}`,
+            hidden ? 'Hidden' : 'Shown',
+            this._statusLabel(indicator.status),
+            indicator.id ? `ID: ${indicator.id}` : '',
+            !indicator.id && indicator.path ? `Path: ${indicator.path}` : '',
         ].filter(Boolean);
 
-        return parts.join('   ');
+        return parts.join('; ');
+    }
+
+    _statusLabel(status) {
+        switch (status) {
+        case 'Active':
+            return 'Running';
+        case 'Passive':
+            return 'Idle';
+        case 'NeedsAttention':
+            return 'Needs attention';
+        default:
+            return status || '';
+        }
+    }
+
+    _matcherTitle(matcher) {
+        const separator = matcher.indexOf(':');
+        if (separator <= 0)
+            return `Any text: ${matcher}`;
+
+        const field = matcher.slice(0, separator).toLowerCase();
+        const value = matcher.slice(separator + 1);
+        const label = MATCHER_FIELD_LABELS[field] ?? this._humanizeToken(field);
+
+        return `${label}: ${value}`;
+    }
+
+    _humanizeToken(value) {
+        const text = String(value ?? '').trim();
+        if (!text)
+            return '';
+
+        return text
+            .replace(/[._-]+/g, ' ')
+            .split(/\s+/)
+            .map(word => this._humanizeWord(word))
+            .join(' ');
+    }
+
+    _humanizeWord(word) {
+        const lower = word.toLowerCase();
+
+        if (ABBREVIATIONS.has(lower))
+            return lower.toUpperCase();
+
+        if (/^\d+$/.test(word))
+            return word;
+
+        return `${lower.charAt(0).toUpperCase()}${lower.slice(1)}`;
     }
 
     _preferredMatcher(indicator) {
