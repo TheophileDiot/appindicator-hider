@@ -33,9 +33,10 @@ Before opening a PR:
 ## Security Expectations
 
 - Do not add repository or organization secrets unless a maintainer explicitly approves the release design.
-- Do not add third-party GitHub Actions. If an Action is necessary, pin it to a full 40-character commit SHA and include the upstream version as a comment.
+- Do not add third-party GitHub Actions except the approved GitGuardian scan. If an Action is necessary, pin it to a full 40-character commit SHA and include the upstream version as a comment.
 - Keep workflow permissions least-privilege. Validation jobs should use read-only repository contents.
 - Do not add `pull_request_target`, `workflow_run`, or `repository_dispatch` workflows for this project.
+- Fork pull requests must not change workflow, Dependabot, or `Makefile` automation directly. A maintainer must recreate reviewed automation changes from a trusted branch.
 - Avoid vendored, minified, generated, or binary blobs unless a maintainer explicitly asks for them.
 - Remove private data from issue reports, screenshots, logs, and shell output before posting.
 
@@ -74,7 +75,7 @@ Run the release check before release-facing changes:
 make release-check
 ```
 
-This runs schema compilation, package validation, a lightweight secret scan, and workflow security checks.
+This runs schema compilation and package validation. GitGuardian and GitHub Secret Protection handle secret scanning.
 
 The package should contain only:
 

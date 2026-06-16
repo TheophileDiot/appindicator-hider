@@ -34,6 +34,26 @@ jobs:
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           persist-credentials: false
+          fetch-depth: 0
+
+      - name: Reject fork automation changes
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          changed="$(
+            git diff --name-only "$BASE_SHA" "$GITHUB_SHA" -- \
+              .github/workflows \
+              .github/dependabot.yml \
+              Makefile
+          )"
+
+          if [ -n "$changed" ]; then
+            echo "Automation changes from fork pull requests are not accepted directly." >&2
+            echo "A maintainer must recreate the reviewed change from a trusted branch." >&2
+            printf '%s\n' "$changed" >&2
+            exit 1
+          fi
 
       - name: Install GNOME packaging tools
         run: |

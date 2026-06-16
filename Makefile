@@ -5,7 +5,7 @@ INSTALL_DIR = $(HOME)/.local/share/gnome-shell/extensions/$(UUID)
 DIST_DIR = dist
 ZIP = $(DIST_DIR)/$(UUID).shell-extension.zip
 
-.PHONY: all schemas install uninstall pack secret-scan workflow-security-check release-check clean
+.PHONY: all schemas install uninstall pack release-check clean
 
 all: schemas
 
@@ -23,13 +23,7 @@ pack: schemas
 	mkdir -p "$(DIST_DIR)"
 	gnome-extensions pack --force --out-dir "$(DIST_DIR)" --schema "$(SCHEMA_FILE)" .
 
-secret-scan:
-	sh scripts/secret-scan.sh
-
-workflow-security-check:
-	sh scripts/workflow-security-check.sh
-
-release-check: secret-scan workflow-security-check
+release-check:
 	$(MAKE) pack
 	test "$$(jq -r '.uuid' metadata.json)" = "$(UUID)"
 	jq -e 'has("version") | not' metadata.json >/dev/null

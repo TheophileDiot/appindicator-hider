@@ -21,10 +21,11 @@
 ## Security and Supply Chain
 
 - [ ] No credentials, tokens, cookies, private keys, or private logs are included
-- [ ] No new repository or organization secrets are required
+- [ ] No new repository or organization secrets are required, except the approved `GITGUARDIAN_API_KEY`
 - [ ] New or changed GitHub Actions are pinned to full commit SHAs
 - [ ] Workflow permissions are least-privilege
-- [ ] Workflow changes do not add high-risk triggers or secret usage
+- [ ] Workflow changes do not add high-risk triggers or unapproved secret usage
+- [ ] Fork PRs do not change workflow, Dependabot, or `Makefile` automation directly
 - [ ] No generated, vendored, minified, or binary blobs are committed
 
 ## GNOME Extension Checklist
