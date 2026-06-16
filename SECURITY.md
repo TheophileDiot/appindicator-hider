@@ -15,19 +15,18 @@ Do not open public issues containing exploit details, credentials, tokens, priva
 ## Secret Handling
 
 - Do not commit credentials, tokens, cookies, private keys, API keys, or copied private logs.
-- Do not configure repository or organization secrets for this project except `GITGUARDIAN_API_KEY` for the GitGuardian secret scan.
+- Do not configure repository or organization secrets for this project.
 - If GNOME upload automation is enabled, store `GNOME_EXTENSIONS_TOKEN` as an environment secret on the protected `gnome-extensions` environment, not as a broad repository or organization secret.
 - Do not store a GNOME account password in GitHub. Use a short-lived GNOME Extensions API token and rotate it after release use or failed upload attempts.
 - If a secret is committed or printed in logs, revoke and rotate it before continuing.
-- Secret scanning is handled by GitGuardian in CI and GitHub Secret Protection in the repository settings.
+- Secret scanning is handled by the GitGuardian GitHub App and GitHub Secret Protection in the repository settings.
 
 ## Supply-Chain Controls
 
 - GitHub Actions default to read-only repository contents.
 - The release workflow grants `contents: write` only to the tag-only GitHub Release job.
 - External GitHub Actions must be pinned to full 40-character commit SHAs with a version comment.
-- The GitGuardian workflow uses the only approved repository secret, `GITGUARDIAN_API_KEY`.
-- GitGuardian is not run on fork pull requests because GitHub does not expose repository secrets to forked PR workflows.
+- Secret scanning does not use a workflow secret. Use the GitGuardian GitHub App integration instead of a repository secret.
 - Automation changes from fork pull requests are rejected in CI. A maintainer should recreate reviewed workflow, Dependabot, or `Makefile` changes from a trusted branch.
 - The release workflow uses GitHub-owned Actions, the GitHub CLI, and direct `curl` calls for GNOME upload; it does not use third-party release or GNOME upload Actions.
 - GNOME upload is opt-in with `GNOME_EXTENSIONS_UPLOAD_ENABLED=true` and must be approved through the protected `gnome-extensions` environment.
@@ -40,7 +39,7 @@ Do not open public issues containing exploit details, credentials, tokens, priva
 Enable these GitHub repository protections before accepting outside contributions:
 
 - Secret scanning and push protection.
-- Repository secret `GITGUARDIAN_API_KEY` for GitGuardian scanning.
+- GitGuardian GitHub App checks, if enabled, without repository secrets.
 - Protected environment `gnome-extensions` with required reviewer approval before adding `GNOME_EXTENSIONS_TOKEN` or setting `GNOME_EXTENSIONS_UPLOAD_ENABLED=true`.
 - Dependabot alerts and Dependabot security updates.
 - Branch protection for `dev` and `main`, including required pull request review.

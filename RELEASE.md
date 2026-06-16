@@ -42,7 +42,7 @@ The workflow is intentionally limited:
 - external Actions are pinned to full commit SHAs
 - workflow files are checked for forbidden triggers, secret usage, broad write permissions, and shell-download pipes
 - GitHub Release publishing uses the GitHub CLI from the runner, not a third-party release Action
-- no repository or organization secrets are required unless GNOME upload automation is enabled
+- no repository or organization secrets are required; GNOME upload uses a protected environment secret only when enabled
 
 ## GNOME Extensions Upload Automation
 
