@@ -4,9 +4,11 @@
 import Adw from 'gi://Adw';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
-import Gtk from 'gi://Gtk?version=4.0';
+import Gtk from 'gi://Gtk';
 
 import {ExtensionPreferences} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
+
+Gio._promisify(Gio.DBusConnection.prototype, 'call', 'call_finish');
 
 const SETTING_HIDDEN_INDICATORS = 'hidden-indicators';
 const SETTING_DEBUG_LOGGING = 'debug-logging';
@@ -32,6 +34,7 @@ export default class AppIndicatorHiderPreferences extends ExtensionPreferences {
         this._settings = this.getSettings();
         this._matcherRows = [];
         this._liveRows = [];
+        this._liveCancellable = null;
 
         window.set_default_size(760, 680);
         window.set_search_enabled(true);
@@ -80,6 +83,9 @@ export default class AppIndicatorHiderPreferences extends ExtensionPreferences {
             this._settings.disconnect(this._settingsChangedId);
             this._settingsChangedId = 0;
         }
+
+        this._liveCancellable?.cancel();
+        this._liveCancellable = null;
 
         this._matcherRows = [];
         this._liveRows = [];
@@ -172,13 +178,40 @@ export default class AppIndicatorHiderPreferences extends ExtensionPreferences {
         refreshRow.activatable_widget = refreshButton;
         this._addLiveRow(refreshRow);
 
-        let indicators = [];
+        const loadingRow = new Adw.ActionRow({
+            title: 'Loading running tray icons…',
+        });
+        const spinner = new Gtk.Spinner({valign: Gtk.Align.CENTER, spinning: true});
+        loadingRow.add_suffix(spinner);
+        this._addLiveRow(loadingRow);
+
+        this._liveCancellable?.cancel();
+        this._liveCancellable = new Gio.Cancellable();
+
+        this._populateLiveIndicators(this._liveCancellable, loadingRow)
+            .catch(e => console.error(`${this.metadata.uuid}: ${e}`));
+    }
+
+    async _populateLiveIndicators(cancellable, loadingRow) {
+        let indicators = null;
+        let error = null;
         try {
-            indicators = this._getRegisteredIndicators();
+            indicators = await this._getRegisteredIndicators(cancellable);
         } catch (e) {
+            error = e;
+        }
+
+        // The window may have closed (disposed) or a newer refresh may have
+        // superseded this one while the async D-Bus calls were in flight.
+        if (cancellable.is_cancelled() || this._settings === null)
+            return;
+
+        this._removeLiveRow(loadingRow);
+
+        if (error) {
             this._addLiveRow(new Adw.ActionRow({
                 title: 'Cannot read running tray icons',
-                subtitle: e.message ?? String(e),
+                subtitle: error.message ?? String(error),
             }));
             return;
         }
@@ -193,6 +226,14 @@ export default class AppIndicatorHiderPreferences extends ExtensionPreferences {
 
         for (const indicator of this._sortIndicators(indicators))
             this._addLiveRow(this._buildIndicatorRow(indicator));
+    }
+
+    _removeLiveRow(row) {
+        this._liveGroup.remove(row);
+
+        const index = this._liveRows.indexOf(row);
+        if (index !== -1)
+            this._liveRows.splice(index, 1);
     }
 
     _buildIndicatorRow(indicator) {
@@ -271,8 +312,8 @@ export default class AppIndicatorHiderPreferences extends ExtensionPreferences {
         return row;
     }
 
-    _getRegisteredIndicators() {
-        const items = this._getRegisteredStatusNotifierItems();
+    async _getRegisteredIndicators(cancellable) {
+        const items = await this._getRegisteredStatusNotifierItems(cancellable);
 
         const indicators = [];
 
@@ -281,13 +322,16 @@ export default class AppIndicatorHiderPreferences extends ExtensionPreferences {
             const unique = this._uniqueId(item, bus, path);
 
             try {
-                const props = this._getItemProperties(bus, path);
+                const props = await this._getItemProperties(bus, path, cancellable);
                 const id = this._property(props, 'Id');
                 const title = this._property(props, 'Title');
                 const status = this._property(props, 'Status');
 
                 indicators.push(this._buildIndicator(item, bus, path, unique, id, title, status));
             } catch (e) {
+                if (cancellable.is_cancelled())
+                    throw e;
+
                 indicators.push(this._buildIndicator(
                     item,
                     bus,
@@ -328,8 +372,8 @@ export default class AppIndicatorHiderPreferences extends ExtensionPreferences {
         };
     }
 
-    _getRegisteredStatusNotifierItems() {
-        const result = Gio.DBus.session.call_sync(
+    async _getRegisteredStatusNotifierItems(cancellable) {
+        const result = await Gio.DBus.session.call(
             STATUS_NOTIFIER_WATCHER,
             STATUS_NOTIFIER_WATCHER_PATH,
             'org.freedesktop.DBus.Properties',
@@ -341,15 +385,15 @@ export default class AppIndicatorHiderPreferences extends ExtensionPreferences {
             new GLib.VariantType('(v)'),
             Gio.DBusCallFlags.NONE,
             1000,
-            null
+            cancellable
         );
 
         const [items] = result.deep_unpack();
         return this._variantValue(items) ?? [];
     }
 
-    _getItemProperties(bus, path) {
-        const result = Gio.DBus.session.call_sync(
+    async _getItemProperties(bus, path, cancellable) {
+        const result = await Gio.DBus.session.call(
             bus,
             path,
             'org.freedesktop.DBus.Properties',
@@ -358,7 +402,7 @@ export default class AppIndicatorHiderPreferences extends ExtensionPreferences {
             new GLib.VariantType('(a{sv})'),
             Gio.DBusCallFlags.NONE,
             1000,
-            null
+            cancellable
         );
 
         const [properties] = result.deep_unpack();

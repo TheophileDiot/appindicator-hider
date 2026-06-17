@@ -14,14 +14,14 @@ export default class AppIndicatorHiderExtension extends Extension {
     enable() {
         this._settings = this.getSettings();
         this._hiddenActors = new Map();
-        this._actorSignals = new Map();
+        this._signalActors = new Set();
         this._timeoutIds = new Set();
         this._syncSourceId = 0;
 
-        this._settingsChangedIds = [
-            this._settings.connect(`changed::${SETTING_HIDDEN_INDICATORS}`, () => this._queueSync()),
-            this._settings.connect(`changed::${SETTING_DEBUG_LOGGING}`, () => this._queueSync()),
-        ];
+        this._settings.connectObject(
+            `changed::${SETTING_HIDDEN_INDICATORS}`, () => this._queueSync(),
+            `changed::${SETTING_DEBUG_LOGGING}`, () => this._queueSync(),
+            this);
 
         this._patchPanelAddToStatusArea();
         this._queueSync();
@@ -41,13 +41,13 @@ export default class AppIndicatorHiderExtension extends Extension {
             GLib.Source.remove(timeoutId);
         this._timeoutIds.clear();
 
-        for (const id of this._settingsChangedIds)
-            this._settings.disconnect(id);
-        this._settingsChangedIds = [];
+        this._settings.disconnectObject(this);
 
-        for (const [actor, ids] of this._actorSignals)
-            this._disconnectActorSignals(actor, ids);
-        this._actorSignals.clear();
+        for (const actor of this._signalActors) {
+            actor.disconnectObject(this);
+            actor._indicator?.disconnectObject(this);
+        }
+        this._signalActors.clear();
 
         for (const actor of this._hiddenActors.keys())
             this._showActor(actor);
@@ -127,41 +127,31 @@ export default class AppIndicatorHiderExtension extends Extension {
     }
 
     _ensureActorSignals(actor) {
-        if (this._actorSignals.has(actor))
+        if (this._signalActors.has(actor))
             return;
 
-        const ids = [];
+        this._signalActors.add(actor);
 
-        ids.push(actor.connect('destroy', () => {
-            const signalIds = this._actorSignals.get(actor) ?? ids;
-            this._disconnectActorSignals(actor, signalIds);
-            this._hiddenActors.delete(actor);
-            this._actorSignals.delete(actor);
-            this._queueSync();
-        }));
+        actor.connectObject(
+            'destroy', () => this._onActorDestroyed(actor),
+            'notify::visible', () => this._queueSync(),
+            this);
 
-        ids.push(actor.connect('notify::visible', () => this._queueSync()));
-
-        if (actor._indicator?.connect) {
-            ids.push([actor._indicator, actor._indicator.connect('ready', () => this._queueSync())]);
-            ids.push([actor._indicator, actor._indicator.connect('status', () => this._queueSync())]);
-            ids.push([actor._indicator, actor._indicator.connect('accessible-name', () => this._queueSync())]);
-            ids.push([actor._indicator, actor._indicator.connect('reset', () => this._queueSync())]);
+        if (actor._indicator?.connectObject) {
+            actor._indicator.connectObject(
+                'ready', () => this._queueSync(),
+                'status', () => this._queueSync(),
+                'accessible-name', () => this._queueSync(),
+                'reset', () => this._queueSync(),
+                this);
         }
-
-        this._actorSignals.set(actor, ids);
     }
 
-    _disconnectActorSignals(actor, ids) {
-        for (const signal of ids) {
-            try {
-                const [source, id] = Array.isArray(signal) ? signal : [actor, signal];
-                if (source?.disconnect && id)
-                    source.disconnect(id);
-            } catch (e) {
-                // Actor or indicator may already be destroyed.
-            }
-        }
+    _onActorDestroyed(actor) {
+        actor._indicator?.disconnectObject(this);
+        this._signalActors.delete(actor);
+        this._hiddenActors.delete(actor);
+        this._queueSync();
     }
 
     _collectFacts(key, actor) {
@@ -234,17 +224,13 @@ export default class AppIndicatorHiderExtension extends Extension {
         const wasVisible = this._hiddenActors.get(actor);
         this._hiddenActors.delete(actor);
 
-        if ((wasVisible || this._indicatorWantsVisible(actor)) && !this._isActorDestroyed(actor))
+        if (wasVisible || this._indicatorWantsVisible(actor))
             actor.show();
     }
 
     _indicatorWantsVisible(actor) {
         const status = actor._indicator?.status;
         return status === 'Active' || status === 'NeedsAttention';
-    }
-
-    _isActorDestroyed(actor) {
-        return typeof actor.is_destroyed === 'function' && actor.is_destroyed();
     }
 
     _log(message) {
