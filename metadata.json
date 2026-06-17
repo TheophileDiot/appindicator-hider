@@ -10,5 +10,8 @@
     "50"
   ],
   "url": "https://github.com/TheophileDiot/appindicator-hider",
-  "settings-schema": "org.gnome.shell.extensions.appindicator-hider"
+  "settings-schema": "org.gnome.shell.extensions.appindicator-hider",
+  "donations": {
+    "paypal": "TDiot"
+  }
 }
