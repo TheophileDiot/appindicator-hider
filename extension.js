@@ -137,14 +137,12 @@ export default class AppIndicatorHiderExtension extends Extension {
             'notify::visible', () => this._queueSync(),
             this);
 
-        if (actor._indicator?.connectObject) {
-            actor._indicator.connectObject(
-                'ready', () => this._queueSync(),
-                'status', () => this._queueSync(),
-                'accessible-name', () => this._queueSync(),
-                'reset', () => this._queueSync(),
-                this);
-        }
+        actor._indicator?.connectObject(
+            'ready', () => this._queueSync(),
+            'status', () => this._queueSync(),
+            'accessible-name', () => this._queueSync(),
+            'reset', () => this._queueSync(),
+            this);
     }
 
     _onActorDestroyed(actor) {
