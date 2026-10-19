@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## What this is
 
 A GNOME Shell extension (GJS / ES modules) that selectively hides AppIndicator / KStatusNotifier
-tray icons while leaving the rest of the top bar visible. Supports GNOME Shell 46–50. There is
+tray icons while leaving the rest of the top bar visible. Supports GNOME Shell 46–51. There is
 **no test framework and no lint/format config** — `make release-check` is the validation gate.
 
 ## Commands
